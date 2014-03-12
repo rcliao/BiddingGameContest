@@ -43,8 +43,11 @@ public class BiddingGame {
     }
 
     public String getFirstMovesStr() {
-        return first_moves.toString().substring(1,
-            first_moves.toString().length()-1);
+        String result = "";
+        for (int i: first_moves) {
+            result += i + " ";
+        }
+        return (result.length() != 0) ? result.substring(0, result.length()-1) : result;
     }
 
     public int[] getSecondMoves() {
@@ -56,8 +59,11 @@ public class BiddingGame {
     }
 
     public String getSecondMovesStr() {
-        return second_moves.toString().substring(1,
-            second_moves.toString().length()-1);
+        String result = "";
+        for (int i: second_moves) {
+            result += i + " ";
+        }
+        return (result.length() != 0) ? result.substring(0, result.length()-1) : result;
     }
 
     public boolean isGameEnded() {
@@ -66,6 +72,9 @@ public class BiddingGame {
             winner = "Player 1";
         } else if (pos == 10) {
             winner = "Player 2";
+        } else if (firstMoney == 0 && secondMoney == 0) {
+            winner = "Tie";
+            return true;
         }
         return (pos == 0 || pos == 10 || !winner.equals("Tie"));
     }
@@ -188,6 +197,14 @@ public class BiddingGame {
                     System.out.println(game.getPos());
                     System.out.println(game.getFirstMovesStr());
                     System.out.println(game.getSecondMovesStr());
+                } else if (option.equals("+gameState")) {
+                    if (game.isGameEnded()) {
+                        System.out.println("END");
+                    } else {
+                        System.out.println("NOPE");
+                    }
+                } else if (option.equals("+winner")) {
+                    System.out.println(game.getWinner());
                 }
 
             }
