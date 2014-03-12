@@ -6,6 +6,7 @@ import logging
 import time
 
 botFiles = {}
+botPlays = {}
 
 def initGame():
     game = Popen(['java', 'game/BiddingGame'], stdin=PIPE, stdout=PIPE)
@@ -45,8 +46,9 @@ def readBotFiles():
     # find out all bot files in bots directory
     for file in listdir("bots"):
         if file.endswith(".java") or file.endswith(".scala") or \
-           file.endswith(".py"):
+           file.endswith(".py") or file.endswith(".jar"):
             botFiles[file] = 0
+            botPlays[file] = 0
 
 def randomPair():
     # pair up random bots
@@ -88,12 +90,15 @@ def createProcess(botFile):
         basename = botFile.split(".")[0]
         bot = Popen(['java', 'bots/' + basename], stdin=PIPE, stdout=PIPE)
         return bot
+    elif botFile.endswith(".jar"):
+        bot = Popen(['java', '-jar', 'bots/' + botFile], stdin=PIPE, stdout=PIPE)
+        return bot
 
 def displayTable():
-    print '| %20s | %10s |' % ('Bot Name', 'Win Count')
-    print '+-%20s-+-%10s-+' % ('--------------------', '----------')
+    print '| %30s | %10s | %10s |' % ('Bot Name', 'Win Count', '# of Plays')
+    print '+-%30s-+-%10s-+-%10s-+' % ('------------------------------', '----------', '----------')
     for b in botFiles.keys():
-        print '| %20s | %10d |' % (b, botFiles[b])
+        print '| %30s | %10f | %10d |' % (b, botFiles[b], botPlays[b])
 
 def graphBottle(pos):
     for i in xrange(int(pos)):
@@ -104,7 +109,7 @@ def graphBottle(pos):
 def main():
     # setup logger
     logging.basicConfig(level=logging.INFO)
-    logging.getLogger(__name__)
+    logger = logging.getLogger(__name__)
 
     # setup
     readBotFiles()
@@ -113,51 +118,87 @@ def main():
     # play game
     logging.info('Game is about to start')
 
+    gameid = 1
+
     try:
         while True:
+
             bot1file, bot2file = randomPair()
-            logging.info('selected bot: ' + bot1file + ', ' + bot2file)
 
-            game = initGame()
+            hdlr = logging.FileHandler('logs/game' + str(gameid) + ' (' + str(bot1file) + ' vs ' + str(bot2file) + ').log')
+            formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+            hdlr.setFormatter(formatter)
+            logger.addHandler(hdlr)
+            logger.setLevel(logging.INFO)
 
-            while getGameState(game) != "END":
-                bot1, bot2 = initBots(bot1file, bot2file)
+            logger.info('selected bot: ' + bot1file + ', ' + bot2file)
 
-                pos,p1moves,p2moves = getState(game)
+            logger.info('Game 1 starts')
 
-                p1bid, err = bot1.communicate('1\n' + pos + p1moves + p2moves)
-                p2bid, err = bot2.communicate('2\n' + pos + p1moves + p2moves)
+            p1win = 0
+            p2win = 0
 
-                doMoves(game, p1bid, p2bid)
+            for i in xrange(2):
+            # not specific enoug
 
-                print ''
+                game = initGame()
 
-                graphBottle(pos)
+                while getGameState(game) != "END":
 
-                logging.info('message: ' + '\n' + '1\n' + pos + p1moves + p2moves.strip())
-                logging.info('p1bid : ' + str(p1bid).strip())
-                logging.info('p2bid : ' + str(p2bid).strip())
+                    bot1, bot2 = initBots(bot1file, bot2file)
 
-                time.sleep(0.5)
+                    pos,p1moves,p2moves = getState(game)
 
-            winner = getWinner(game)
-            if winner == "Player 1":
+                    p1bid, err = bot1.communicate('1\n' + pos + p1moves + p2moves)
+                    p2bid, err = bot2.communicate('2\n' + pos + p1moves + p2moves)
+
+                    doMoves(game, p1bid, p2bid)
+
+                    graphBottle(pos)
+
+                    logger.info('message: ' + '\n' + '1\n' + pos + p1moves + p2moves.strip())
+                    logger.info('p1bid : ' + str(p1bid).strip())
+                    logger.info('p2bid : ' + str(p2bid).strip())
+
+                winner = getWinner(game)
+                if winner == "Player 1":
+                    winner = winner + ' ' + bot1file.split(".")[0] + ' | win count ' + str(botFiles[bot1file])
+                    p1win += 1 if i is 0 else 0
+                    p2win += 0 if i is 0 else 1
+                else:
+                    winner = winner + ' ' + bot2file.split(".")[0] + ' | win count ' + str(botFiles[bot2file])
+                    p1win += 0 if i is 0 else 1
+                    p2win += 1 if i is 0 else 0
+
+                logger.info('WINNER IS: ' + winner)
+
+                logger.info('\n\n')
+
+                sorted(botFiles.items(), key=lambda x: x[1])
+                displayTable()
+                time.sleep(2)
+
+                logger.info('\n\n')
+                game.kill()
+
+                tempbot = bot1file
+                bot1file = bot2file
+                bot2file = tempbot
+
+                logger.info('Game 2 starts')
+
+            if p1win == p2win:
+                botFiles[bot1file] += 0.5
+                botFiles[bot2file] += 0.5
+            elif p1win > p2win:
                 botFiles[bot1file] += 1
-                winner = winner + ' ' + bot1file.split(".")[0] + ' | win count ' + str(botFiles[bot1file])
+                botFiles[bot2file] -= 1
             else:
                 botFiles[bot2file] += 1
-                winner = winner + ' ' + bot2file.split(".")[0] + ' | win count ' + str(botFiles[bot2file])
-            logging.info('WINNER IS: ' + winner)
-            time.sleep(1)
-
-            logging.info('\n\n')
-
-            sorted(botFiles.items(), key=lambda x: x[1])
-            displayTable()
-            time.sleep(3)
-
-            logging.info('\n\n')
-            game.kill()
+                botFiles[bot1file] -= 1
+            botPlays[bot1file] += 1
+            botPlays[bot2file] += 1
+            gameid += 1
 
     except KeyboardInterrupt:
         game.kill()
