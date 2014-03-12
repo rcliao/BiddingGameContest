@@ -42,12 +42,22 @@ public class BiddingGame {
         return result;
     }
 
+    public String getFirstMovesStr() {
+        return first_moves.toString().substring(1,
+            first_moves.toString().length()-1);
+    }
+
     public int[] getSecondMoves() {
         int[] result = new int[second_moves.size()];
         for (int i = 0; i < second_moves.size(); i ++) {
             result[i] = second_moves.get(i);
         }
         return result;
+    }
+
+    public String getSecondMovesStr() {
+        return second_moves.toString().substring(1,
+            second_moves.toString().length()-1);
     }
 
     public boolean isGameEnded() {
@@ -150,6 +160,9 @@ public class BiddingGame {
     }
 
     public static void main(String[] args) {
+        // set up initial game state
+        BiddingGame game = new BiddingGame();
+
         Scanner in = new Scanner(System.in);
 
         // stay alive to track the game state between calls
@@ -157,7 +170,26 @@ public class BiddingGame {
             if (in.hasNextLine()) {
                 String option = in.nextLine();
 
-                System.out.println(option);
+                int p1bid = -1;
+                int p2bid = -1;
+
+                if (option.equals("-player")) {
+                    // receive input as player1's bid and player2's bid
+                    p1bid = Integer.parseInt(in.nextLine().replace("\n", ""));
+                    p2bid = Integer.parseInt(in.nextLine().replace("\n", ""));
+
+                    // process the bids
+                    game.doMoves(p1bid, p2bid);
+                } else if (option.equals("+state")) {
+                    // return game state in three lines
+                    //   1. pos
+                    //   2. first_player moves
+                    //   3. second_player moves
+                    System.out.println(game.getPos());
+                    System.out.println(game.getFirstMovesStr());
+                    System.out.println(game.getSecondMovesStr());
+                }
+
             }
         }
     }
